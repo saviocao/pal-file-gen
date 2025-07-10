@@ -3,15 +3,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Sprite Palette Tool (Web)</title>
+  <title>Sprite Palette Tool</title>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
   <script defer src="script.js"></script>
 </head>
 <body>
-  <h1>Sprite Palette Tool</h1>
-  <p>Select PNG files including Base.png and others.</p>
-  <input type="file" id="upload" multiple accept=".png" />
-  <button id="process">Process</button>
+  <h1>Sprite Palette Tool (ZIP IO)</h1>
+  <input type="file" id="zipInput" accept=".zip" />
+  <button id="process">Process ZIP</button>
   <p id="status"></p>
   <div id="output"></div>
 </body>

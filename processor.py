@@ -5,6 +5,9 @@
 import os
 import numpy as np
 from typing import Tuple
+from PIL import Image
+import base64
+import io
 
 def write_jasc_pal(palette: np.ndarray) -> str:
     lines = ["JASC-PAL", "0100", str(len(palette))]
@@ -20,10 +23,24 @@ def remap_indices(base_indices: np.ndarray, other_indices: np.ndarray, other_pix
             remapped[other_pixels == old_idx] = index_map[old_idx]
     return remapped
 
+def indexed_to_image(pixels: np.ndarray, palette: np.ndarray) -> Image.Image:
+    height, width = pixels.shape
+    rgb_array = np.zeros((height, width, 3), dtype=np.uint8)
+    for i, color in enumerate(palette):
+        rgb_array[pixels == i] = color
+    return Image.fromarray(rgb_array, mode="RGB")
+
+def image_to_base64(img: Image.Image) -> str:
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    img_bytes = buffered.getvalue()
+    return base64.b64encode(img_bytes).decode('utf-8')
+
 def run(data_bundle: dict, output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
     has_base = "Base" in data_bundle
     base_indices = None
+    preview_data = {}
 
     if has_base:
         base_pixels = np.array(data_bundle["Base"]["pixels"], dtype=np.uint8)
@@ -51,8 +68,16 @@ def run(data_bundle: dict, output_dir: str):
 
         if has_base:
             remapped = remap_indices(base_indices, used_indices, pixels)
-            img_out_path = os.path.join(output_dir, f"{name}_output.npy")
-            np.save(img_out_path, remapped)
+            image = indexed_to_image(remapped, palette)
+            img_out_path = os.path.join(output_dir, f"{name}_output.png")
+            image.save(img_out_path)
+            preview_data[f"{name}_output.png"] = image_to_base64(image)
         else:
-            img_out_path = os.path.join(output_dir, f"{name}_raw.npy")
-            np.save(img_out_path, pixels)
+            image = indexed_to_image(pixels, palette)
+            img_out_path = os.path.join(output_dir, f"{name}_raw.png")
+            image.save(img_out_path)
+            preview_data[f"{name}_raw.png"] = image_to_base64(image)
+
+    with open(os.path.join(output_dir, "preview.json"), "w") as f:
+        import json
+        json.dump(preview_data, f)
