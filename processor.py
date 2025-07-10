@@ -1,19 +1,17 @@
-
 # NOTE: This version removes PIL to work inside Pyodide/GitHub Pages.
 # Image work must be done in JavaScript and passed to this script via indexed arrays and palettes.
 
 import os
 import numpy as np
-from typing import Tuple
-from PIL import Image
-import base64
-import io
+import json
+
 
 def write_jasc_pal(palette: np.ndarray) -> str:
     lines = ["JASC-PAL", "0100", str(len(palette))]
     for rgb in palette:
         lines.append(f"{rgb[0]} {rgb[1]} {rgb[2]}")
     return "\n".join(lines)
+
 
 def remap_indices(base_indices: np.ndarray, other_indices: np.ndarray, other_pixels: np.ndarray) -> np.ndarray:
     index_map = {old: new for new, old in enumerate(base_indices)}
@@ -23,18 +21,19 @@ def remap_indices(base_indices: np.ndarray, other_indices: np.ndarray, other_pix
             remapped[other_pixels == old_idx] = index_map[old_idx]
     return remapped
 
-def indexed_to_image(pixels: np.ndarray, palette: np.ndarray) -> Image.Image:
-    height, width = pixels.shape
-    rgb_array = np.zeros((height, width, 3), dtype=np.uint8)
-    for i, color in enumerate(palette):
-        rgb_array[pixels == i] = color
-    return Image.fromarray(rgb_array, mode="RGB")
 
-def image_to_base64(img: Image.Image) -> str:
-    buffered = io.BytesIO()
-    img.save(buffered, format="PNG")
-    img_bytes = buffered.getvalue()
-    return base64.b64encode(img_bytes).decode('utf-8')
+def indexed_to_base64(pixels: np.ndarray, palette: np.ndarray) -> str:
+    height, width = pixels.shape
+    rgb = np.zeros((height, width, 3), dtype=np.uint8)
+    for i, color in enumerate(palette):
+        rgb[pixels == i] = color
+    flat = rgb.reshape(-1, 3)
+    return json.dumps({
+        "width": width,
+        "height": height,
+        "pixels": flat.tolist()
+    })
+
 
 def run(data_bundle: dict, output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
@@ -68,16 +67,12 @@ def run(data_bundle: dict, output_dir: str):
 
         if has_base:
             remapped = remap_indices(base_indices, used_indices, pixels)
-            image = indexed_to_image(remapped, palette)
-            img_out_path = os.path.join(output_dir, f"{name}_output.png")
-            image.save(img_out_path)
-            preview_data[f"{name}_output.png"] = image_to_base64(image)
+            preview_data[f"{name}_output.png"] = indexed_to_base64(remapped, palette)
         else:
-            image = indexed_to_image(pixels, palette)
-            img_out_path = os.path.join(output_dir, f"{name}_raw.png")
-            image.save(img_out_path)
-            preview_data[f"{name}_raw.png"] = image_to_base64(image)
+            preview_data[f"{name}_raw.png"] = indexed_to_base64(pixels, palette)
 
     with open(os.path.join(output_dir, "preview.json"), "w") as f:
-        import json
         json.dump(preview_data, f)
+
+# In the browser, this script should be run like:
+# run({ "Base": { "pixels": [...], "palette": [...] }, "Sprite1": {...}, ... }, "/output")
