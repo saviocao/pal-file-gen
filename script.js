@@ -1,3 +1,4 @@
+
 let pyodideReady = loadPyodide();
 
 document.getElementById("process").onclick = async () => {
@@ -74,7 +75,7 @@ document.getElementById("process").onclick = async () => {
       imgData.data[i * 4 + 0] = r;
       imgData.data[i * 4 + 1] = g;
       imgData.data[i * 4 + 2] = b;
-      imgData.data[i * 4 + 3] = 255; // Fully opaque
+      imgData.data[i * 4 + 3] = 255;
     }
 
     ctx.putImageData(imgData, 0, 0);

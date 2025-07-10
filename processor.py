@@ -1,3 +1,4 @@
+
 # NOTE: This version removes PIL to work inside Pyodide/GitHub Pages.
 # Image work must be done in JavaScript and passed to this script via indexed arrays and palettes.
 
@@ -73,6 +74,3 @@ def run(data_bundle: dict, output_dir: str):
 
     with open(os.path.join(output_dir, "preview.json"), "w") as f:
         json.dump(preview_data, f)
-
-# In the browser, this script should be run like:
-# run({ "Base": { "pixels": [...], "palette": [...] }, "Sprite1": {...}, ... }, "/output")
