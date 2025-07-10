@@ -1,4 +1,3 @@
-
 let pyodideReady = loadPyodide();
 
 document.getElementById("process").onclick = async () => {
@@ -41,7 +40,7 @@ document.getElementById("process").onclick = async () => {
       for (let x = 0; x < width; x++) {
         const i = (y * width + x) * 4;
         const r = data[i], g = data[i+1], b = data[i+2];
-        const key = r + "," + g + "," + b;
+        const key = `${r},${g},${b}`;
         if (!(key in colorMap)) {
           colorMap[key] = nextIndex;
           palette.push([r, g, b]);
@@ -63,38 +62,27 @@ document.getElementById("process").onclick = async () => {
   status.textContent = "Rendering previews...";
   const previewJSON = pyodide.FS.readFile("/output/preview.json", { encoding: "utf8" });
   const previews = JSON.parse(previewJSON);
-  for (const [filename, b64] of Object.entries(previews)) {
-    const img = document.createElement("img");
-    img.src = "data:image/png;base64," + b64;
-    img.alt = filename;
-    img.style.margin = "10px";
-    img.style.border = "1px solid #ccc";
-    outputDiv.appendChild(img);
-  }
+  for (const [filename, data] of Object.entries(previews)) {
+    const canvas = document.createElement("canvas");
+    canvas.width = data.width;
+    canvas.height = data.height;
+    const ctx = canvas.getContext("2d");
+    const imgData = ctx.createImageData(data.width, data.height);
 
-  status.textContent = "Zipping results...";
-  const zipOut = new JSZip.default();
-
-  function walk(dir) {
-    const entries = pyodide.FS.readdir(dir).filter(e => e !== '.' && e !== '..');
-    for (const entry of entries) {
-      const fullPath = `${dir}/${entry}`;
-      if (pyodide.FS.stat(fullPath).isDir()) {
-        walk(fullPath);
-      } else {
-        const data = pyodide.FS.readFile(fullPath);
-        zipOut.file(fullPath.replace('/output/', ''), data);
-      }
+    for (let i = 0; i < data.pixels.length; i++) {
+      const [r, g, b] = data.pixels[i];
+      imgData.data[i * 4 + 0] = r;
+      imgData.data[i * 4 + 1] = g;
+      imgData.data[i * 4 + 2] = b;
+      imgData.data[i * 4 + 3] = 255; // Fully opaque
     }
-  }
-  walk("/output");
 
-  const zipped = await zipOut.generateAsync({ type: "blob" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(zipped);
-  a.download = "processed_output.zip";
-  a.textContent = "Download Processed Output ZIP";
-  outputDiv.appendChild(document.createElement("br"));
-  outputDiv.appendChild(a);
+    ctx.putImageData(imgData, 0, 0);
+    const label = document.createElement("p");
+    label.textContent = filename;
+    outputDiv.appendChild(label);
+    outputDiv.appendChild(canvas);
+  }
+
   status.textContent = "Done!";
 };
