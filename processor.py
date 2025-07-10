@@ -1,10 +1,10 @@
-
 # NOTE: This version removes PIL to work inside Pyodide/GitHub Pages.
 # Image work must be done in JavaScript and passed to this script via indexed arrays and palettes.
 
 import os
 import numpy as np
 import json
+import js
 
 
 def write_jasc_pal(palette: np.ndarray) -> str:
@@ -37,7 +37,6 @@ def indexed_to_base64(pixels: np.ndarray, palette: np.ndarray) -> str:
 
 
 def run(data_bundle: dict, output_dir: str):
-    os.makedirs(output_dir, exist_ok=True)
     has_base = "Base" in data_bundle
     base_indices = None
     preview_data = {}
@@ -47,8 +46,7 @@ def run(data_bundle: dict, output_dir: str):
         base_palette = np.array(data_bundle["Base"]["palette"], dtype=np.uint8)
         base_indices = np.unique(base_pixels)
         pal_text = write_jasc_pal(base_palette)
-        with open(os.path.join(output_dir, "Base.pal"), "w") as f:
-            f.write(pal_text)
+        js.FS.writeFile(f"{output_dir}/Base.pal", pal_text)
 
     for name, info in data_bundle.items():
         if name == "Base":
@@ -63,8 +61,7 @@ def run(data_bundle: dict, output_dir: str):
 
         pal_text = write_jasc_pal(palette)
         pal_out_name = f"{name}.pal" if has_base else f"{name}_no_base.pal"
-        with open(os.path.join(output_dir, pal_out_name), "w") as f:
-            f.write(pal_text)
+        js.FS.writeFile(f"{output_dir}/{pal_out_name}", pal_text)
 
         if has_base:
             remapped = remap_indices(base_indices, used_indices, pixels)
@@ -72,5 +69,7 @@ def run(data_bundle: dict, output_dir: str):
         else:
             preview_data[f"{name}_raw.png"] = indexed_to_base64(pixels, palette)
 
-    with open(os.path.join(output_dir, "preview.json"), "w") as f:
-        json.dump(preview_data, f)
+    js.FS.writeFile(f"{output_dir}/preview.json", json.dumps(preview_data))
+
+# In the browser, this script should be run like:
+# run({ "Base": { "pixels": [...], "palette": [...] }, "Sprite1": {...}, ... }, "/output")
